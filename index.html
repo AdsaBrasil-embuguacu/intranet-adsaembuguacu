@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aviso — Intranet ADSA</title>
+
+  <!-- Fonte e Tailwind via CDN -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root{
+      --brand-primary: #0A5C93;
+      --brand-accent: #F5A623;
+    }
+    body{ font-family: 'Poppins', sans-serif; background:#f3f4f6; margin:0; -webkit-font-smoothing:antialiased;}
+    .modal-backdrop { background-color: rgba(0,0,0,0.62); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+
+  <!-- Modal full-screen -->
+  <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0"></div>
+
+    <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-[92%] md:w-3/4 p-6 z-10">
+      <div class="flex items-center gap-4">
+        <!-- Ícone - troque a URL se quiser outra imagem -->
+        <div class="w-16 h-16 rounded-full flex items-center justify-center bg-[var(--brand-primary)] p-2">
+          <img src="https://img.icons8.com/ios-filled/64/ffffff/paper-plane.png" alt="ícone" class="w-8 h-8">
+        </div>
+
+        <div class="flex-1">
+          <h1 class="text-2xl md:text-3xl font-bold" style="color:var(--brand-primary)">Novidades na Intranet!</h1>
+          <p class="mt-1 text-gray-600">De <span id="period-start" class="font-semibold">10/08/2025</span> a <span id="period-end" class="font-semibold">20/08/2025</span>.</p>
+        </div>
+      </div>
+
+      <p id="main-message" class="mt-4 text-gray-700">
+        💡 De 10/08 a 20/08: novo painel de pedidos de revistas EBD e outras novidades. Clique em "Entrar agora" ou aguarde o redirecionamento automático.
+      </p>
+
+      <p class="mt-3 text-sm text-gray-500">
+        Você será redirecionado automaticamente em <span id="countdown" class="font-semibold text-[var(--brand-primary)]">10</span> segundos...
+      </p>
+
+      <div class="mt-6 flex items-center gap-3">
+        <input id="noShowToday" type="checkbox" class="w-4 h-4">
+        <label for="noShowToday" class="text-sm text-gray-600">Não mostrar novamente hoje</label>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button id="btn-enter" class="px-5 py-2 rounded-lg bg-[var(--brand-accent)] text-white font-semibold hover:brightness-95 transition">Entrar agora</button>
+        <button id="btn-open-new" class="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">Abrir em nova aba</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*******************
+     Configurações
+    *******************/
+    const CONFIG = {
+      // Período em que o modal aparecerá (inclusive)
+      startDate: "2025-08-10",
+      endDate:   "2025-08-20",
+
+      // Link da intranet (onde vamos redirecionar)
+      intranetURL: "https://sites.google.com/view/intranet-adsaembuguacu",
+
+      // segundos até auto-redirecionar
+      autoRedirectTime: 10,
+
+      // chave usada no localStorage
+      storageKey: "portal_intranet_seen_until"
+    };
+
+    /*******************
+     Helpers de data
+    *******************/
+    function parseISODateString(s){
+      // espera "YYYY-MM-DD"
+      const parts = s.split("-");
+      return new Date(parts[0], Number(parts[1]) - 1, parts[2]);
+    }
+    function dateOnly(d){
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+    function formatBR(d){
+      const dd = String(d.getDate()).padStart(2,"0");
+      const mm = String(d.getMonth()+1).padStart(2,"0");
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    /*******************
+     Inicialização
+    *******************/
+    const start = dateOnly(parseISODateString(CONFIG.startDate));
+    const end   = dateOnly(parseISODateString(CONFIG.endDate));
+    const today = dateOnly(new Date());
+
+    // Ajusta texto do período
+    document.getElementById('period-start').innerText = formatBR(start);
+    document.getElementById('period-end').innerText = formatBR(end);
+
+    // Fora do período -> vai direto para a intranet
+    if (today < start || today > end) {
+      // redireciona imediatamente
+      window.location.href = CONFIG.intranetURL;
+    }
+
+    // Se usuário já marcou "não mostrar hoje"
+    const seenISO = localStorage.getItem(CONFIG.storageKey);
+    if (seenISO) {
+      const seenDate = dateOnly(new Date(seenISO));
+      if (seenDate.getTime() === today.getTime()) {
+        // já viu hoje
+        window.location.href = CONFIG.intranetURL;
+      }
+    }
+
+    /*******************
+     Countdown e eventos
+    *******************/
+    let countdown = CONFIG.autoRedirectTime;
+    const countdownEl = document.getElementById('countdown');
+    countdownEl.innerText = countdown;
+
+    let interval = setInterval(() => {
+      countdown--;
+      if (countdown < 0) {
+        clearInterval(interval);
+        doRedirect(false);
+        return;
+      }
+      countdownEl.innerText = countdown;
+    }, 1000);
+
+    function doRedirect(savePreference){
+      // se quiser salvar preferência para não mostrar mais hoje
+      if (savePreference) {
+        // salva ISO do dia (00:00) — comparável depois
+        localStorage.setItem(CONFIG.storageKey, (new Date()).toISOString());
+      }
+      // abre na mesma aba (replace para não deixar histórico do portal)
+      window.location.replace(CONFIG.intranetURL);
+    }
+
+    // Botão "Entrar agora"
+    document.getElementById('btn-enter').addEventListener('click', () => {
+      const noShow = document.getElementById('noShowToday').checked;
+      clearInterval(interval);
+      doRedirect(noShow);
+    });
+
+    // Botão "Abrir em nova aba"
+    document.getElementById('btn-open-new').addEventListener('click', () => {
+      const noShow = document.getElementById('noShowToday').checked;
+      if (noShow) {
+        localStorage.setItem(CONFIG.storageKey, (new Date()).toISOString());
+      }
+      window.open(CONFIG.intranetURL, "_blank");
+    });
+
+    // Caso queira fechar o modal por JS (opcional)
+    function hideModal() {
+      const m = document.getElementById('modal');
+      if (m) m.style.display = 'none';
+    }
+  </script>
+</body>
+</html>
